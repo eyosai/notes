@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tường ghi chú</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-image: linear-gradient(0deg, #eee 1px, transparent 0),
+        linear-gradient(90deg, #eee 1px, transparent 0);
+      background-size: 30px 30px;
+      color: #333;
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    #board {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .card {
+      position: absolute;
+      width: 220px;
+      border-radius: 12px;
+      box-shadow: 0 16px 35px rgba(0, 0, 0, 0.2);
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      opacity: 0;
+      transform-origin: center;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.7);
+      cursor: grab;
+      user-select: none;
+    }
+
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .control {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+    }
+
+    .control.close { background: #ff5f57; border-color: #e0443e; }
+    .control.minimize { background: #febb2e; border-color: #dea123; }
+    .control.maximize { background: #28c840; border-color: #1aab2c; }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.55);
+      padding-left: 8px;
+      flex: 1;
+    }
+
+    .card-body {
+      padding: 16px;
+      font-size: 16px;
+      line-height: 1.4;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.72);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .card.maximized {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+      z-index: 9999;
+      transition: all 0.35s ease;
+    }
+
+    .card.maximized .card-title {
+      display: none;
+    }
+
+    .card.maximized .card-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: clamp(48px, min(18vw, 18vh), 200px);
+      line-height: 1.1;
+    }
+
+    @media (max-width: 768px) {
+      .card {
+        width: 180px;
+        border-radius: 10px;
+      }
+
+      .card-body {
+        padding: 14px;
+        font-size: 14px;
+      }
+
+      .card-title {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="board"></div>
+
+  <script>
+    const board = document.getElementById('board');
+    const messages = [
+      'Giữ tâm trạng thật tốt nhé 💛',
+      'Uống nước đầy đủ nha 💧',
+      'Hôm nay bạn đã làm tốt rồi 🌸',
+      'Đi ngủ sớm một chút nhé 😴',
+      'Đừng quên ăn trái cây 🍎',
+      'Cố lên, bạn làm được mà 💪',
+      'Chúc bạn một ngày suôn sẻ 🌿',
+      'Cười lên nào 😄',
+      'Mong mọi muộn phiền đều tan biến 💫',
+      'Hẹn gặp lại trong nụ cười nhé 🌈',
+      'Giấc mơ rồi sẽ thành hiện thực ✨',
+      'Trời lạnh rồi, nhớ mặc ấm nha 🧣',
+      'Đừng quên nghỉ ngơi nhé ☕',
+      'Ngày mai lại là một khởi đầu mới 🌅',
+      'Cảm ơn vì bạn vẫn đang cố gắng 💖'
+    ];
+
+    const colors = [
+      '#ffe0e3',
+      '#c7f0ff',
+      '#ffd8a8',
+      '#d9f2d9',
+      '#e5d7ff',
+      '#f9f7d9',
+      '#d2f0f8',
+      '#ffd4f5'
+    ];
+
+    const isMobile = window.innerWidth <= 768;
+    const maxCards = isMobile ? 120 : 180;
+    const initialCount = isMobile ? 18 : 30;
+    const spawnInterval = isMobile ? 700 : 400;
+
+    let zIndexCounter = 200;
+
+    function randomFrom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function createCard() {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.background = randomFrom(colors);
+
+      const left = Math.random() * (window.innerWidth - 220);
+      const top = Math.random() * (window.innerHeight - 140);
+
+      card.style.left = left + 'px';
+      card.style.top = top + 'px';
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="window-controls">
+            <div class="control close" title="Đóng"></div>
+            <div class="control minimize" title="Thu nhỏ"></div>
+            <div class="control maximize" title="Phóng to"></div>
+          </div>
+          <div class="card-title">Ghi chú nhỏ</div>
+        </div>
+        <div class="card-body">${randomFrom(messages)}</div>
+      `;
+
+      board.appendChild(card);
+      card.offsetHeight; // trigger reflow
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+      card.style.transition = 'transform 0.35s ease, opacity 0.35s ease';
+      card.style.zIndex = zIndexCounter++;
+
+      // Sự kiện nút
+      const closeBtn = card.querySelector('.control.close');
+      const minimizeBtn = card.querySelector('.control.minimize');
+      const maximizeBtn = card.querySelector('.control.maximize');
+
+      closeBtn.addEventListener('click', () => card.remove());
+      minimizeBtn.addEventListener('click', () => {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.1)';
+        setTimeout(() => card.remove(), 300);
+      });
+      maximizeBtn.addEventListener('click', () => {
+        card.classList.toggle('maximized');
+      });
+
+      if (board.children.length > maxCards) {
+        board.firstElementChild?.remove();
+      }
+    }
+
+    // Tạo thẻ ban đầu
+    for (let i = 0; i < initialCount; i++) {
+      setTimeout(createCard, i * (isMobile ? 60 : 40));
+    }
+
+    // Tạo liên tục
+    setInterval(() => {
+      if (!document.hidden) createCard();
+    }, spawnInterval);
+  </script>
+</body>
+</html>
